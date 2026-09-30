@@ -1,0 +1,142 @@
+/* ==========================================================
+   aucarre-ui.css — socle visuel partagé entre tous les widgets internes.
+   Préfixe "au-" (au carré UI), distinct de :
+     - "pm-"  → bandeau / menu / avatar (portail-menu.css)
+     - ac-/rc-/rs-… → styles propres à chaque widget
+
+   À charger dans le <head> de chaque widget, AVANT portail-menu.css
+   (qui utilise les variables définies ici) et AVANT le <style> du widget
+   (pour que celui-ci puisse surcharger au besoin) :
+     <link rel="stylesheet" href="…/aucarre-ui.css">
+
+   Sections : TOKENS · BASE · TITRES · BOUTON · TAG · CHAMPS · PANEL ·
+              RETOURS · ÉTATS · MODALE
+   ========================================================== */
+
+/* TOKENS */
+:root{
+  --ac-black:#090c0b;
+  --ac-turquoise:#45f8cf;
+  --ac-orange:#f77245;
+  --ac-yellow:#fcfc0b;
+  --ac-grey-dark:#59736e;
+  --ac-grey-light:#f2f2f2;
+  --ac-off-white:#f3f6f6;
+  --ac-white:#ffffff;
+  --ac-text:#2d2d2d;
+  --ac-radius:16px;
+  --ac-radius-sm:8px;
+
+  /* Couleurs d'accent surchargeables par widget (ex. :root{ --au-btn-accent: var(--ac-orange); }) */
+  --au-btn-accent: var(--ac-turquoise);
+  --au-stabilo-color: var(--ac-yellow);
+}
+
+/* BASE */
+html, body{ margin: 0; padding: 0; background: var(--ac-grey-light); }
+body{ font-family: "Montserrat", Arial, sans-serif; color: var(--ac-black); -webkit-font-smoothing: antialiased; }
+*{ box-sizing: border-box; }
+input, button, select, textarea{ font: inherit; color: inherit; }
+button:disabled{ cursor: not-allowed; opacity: 0.5; }
+::placeholder{ color: var(--ac-grey-dark); opacity: 1; }
+/* Focus clavier visible partout (RGAA) — auparavant présent dans un seul widget. */
+:focus-visible{ outline: 3px solid var(--ac-black); outline-offset: 2px; }
+
+/* TITRES */
+.au-eyebrow{
+  display: inline-flex; align-items: center; gap: 8px; margin: 0 0 8px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ac-black);
+}
+.au-eyebrow::before{ content: ""; width: 10px; height: 10px; background: var(--ac-orange); border: 1.5px solid var(--ac-black); flex: none; }
+h1.au-title{ margin: 0 0 24px; font-size: 28px; font-weight: 800; letter-spacing: -0.01em; }
+
+/* Effet "stabilo" : le texte reste noir, seule la couleur de fond change (conforme RGAA). */
+.au-stabilo{ position: relative; display: inline-block; z-index: 1; }
+.au-stabilo::before{
+  content: ""; position: absolute; left: -4px; right: -4px; bottom: 0; height: 40%;
+  background: var(--au-stabilo-color); border-radius: 6px; transform: rotate(-1deg); z-index: -1;
+}
+.au-stabilo--turquoise{ --au-stabilo-color: var(--ac-turquoise); }
+
+/* BOUTON */
+.au-btn-wrap{ position: relative; display: inline-block; }
+.au-btn{
+  position: relative; z-index: 2;
+  border: 1.5px solid var(--ac-black); background: var(--ac-white); color: var(--ac-black);
+  border-radius: var(--ac-radius-sm); padding: 12px 24px; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: transform .18s ease, background .15s ease, color .15s ease;
+}
+.au-btn-shadow{
+  position: absolute; inset: 0; z-index: 1;
+  border: 1.5px solid var(--ac-black); border-radius: var(--ac-radius-sm); background: var(--au-btn-accent);
+  transform: translateY(5px); transition: transform .18s ease;
+}
+.au-btn-wrap:hover .au-btn, .au-btn-wrap:focus-within .au-btn{ background: var(--ac-white); color: var(--ac-black); transform: translateY(3px); }
+.au-btn-wrap:hover .au-btn-shadow, .au-btn-wrap:focus-within .au-btn-shadow{ transform: translateY(2px); }
+.au-btn-wrap:has(.au-btn:disabled) .au-btn,
+.au-btn-wrap:has(.au-btn:disabled) .au-btn-shadow{ transform: none; }
+
+/* TAG */
+.au-tag{
+  border: 1.5px solid var(--ac-black); background: var(--ac-white); color: var(--ac-black);
+  padding: 8px 16px; font-size: 13.5px; font-weight: 500; cursor: pointer; border-radius: var(--ac-radius-sm);
+  transition: background .15s ease, color .15s ease;
+}
+.au-tag:hover{ border-color: var(--ac-orange); }
+.au-tag--sm{ padding: 6px 12px; font-size: 12.5px; }
+
+/* CHAMPS */
+.au-field-group{ display: grid; gap: 16px; }
+.au-field{ display: grid; gap: 8px; }
+.au-field label{ font-size: 13px; color: var(--ac-grey-dark); font-weight: 500; }
+.au-field input, .au-field select, .au-field textarea{
+  border: 1.5px solid rgba(9,12,11,0.22); background: var(--ac-grey-light); color: var(--ac-black);
+  padding: 12px 14px; font-size: 15px; border-radius: var(--ac-radius-sm);
+  width: 100%; min-width: 0;
+}
+.au-field textarea{ resize: vertical; }
+/* Pas de "outline: none" : le focus garde l'anneau noir global (:focus-visible) ;
+   l'orange n'est plus qu'un complément décoratif, jamais le seul indicateur. */
+.au-field input:focus, .au-field select:focus, .au-field textarea:focus{ border-color: var(--ac-orange); }
+.au-row{ display: flex; gap: 16px; flex-wrap: wrap; }
+.au-row > .au-field{ flex: 1; min-width: 140px; }
+
+/* PANEL */
+.au-panel{
+  background: var(--ac-white); border: 1.5px solid var(--ac-black); border-radius: var(--ac-radius);
+  padding: 24px; margin-bottom: 20px;
+}
+
+/* RETOURS (messages de succès / d'erreur) */
+.au-feedback{ font-size: 13.5px; margin: 12px 0 0; }
+/* Texte toujours noir/gris foncé : l'orange n'est jamais une couleur de texte
+   (contraste 2,8:1 sur blanc < 4,5:1). Il sert ici de repère visuel à gauche. */
+.au-feedback.is-error{ color: var(--ac-black); font-weight: 700; border-left: 4px solid var(--ac-orange); padding-left: 8px; }
+.au-feedback.is-success{ color: var(--ac-grey-dark); font-weight: 700; }
+.au-notice{
+  padding: 12px 16px; background: var(--ac-white); border: 1.5px solid var(--ac-black);
+  border-left: 6px solid var(--ac-yellow); border-radius: var(--ac-radius-sm); font-size: 13.5px; color: var(--ac-black);
+}
+
+/* ÉTATS (chargement / erreur plein écran) */
+.au-state{ text-align: center; padding: 48px 24px; color: var(--ac-grey-dark); }
+.au-spinner{
+  display: inline-block; width: 14px; height: 14px; border-radius: 50%; flex: none;
+  border: 2px solid rgba(9,12,11,0.25); border-top-color: var(--ac-black);
+  animation: au-tourner 0.7s linear infinite; vertical-align: -2px; margin-right: 6px;
+}
+@keyframes au-tourner{ to { transform: rotate(360deg); } }
+
+/* MODALE (fond seulement — la boîte elle-même reste propre à chaque widget) */
+.au-modal-overlay{
+  position: fixed; inset: 0; background: rgba(9,12,11,0.6); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+
+/* ACCESSIBILITÉ — mouvement réduit */
+@media (prefers-reduced-motion: reduce){
+  .au-spinner{ animation: none; opacity: 0.6; }
+  .au-btn, .au-btn-shadow, .au-tag{ transition: none; }
+  .au-btn-wrap:hover .au-btn, .au-btn-wrap:hover .au-btn-shadow,
+  .au-btn-wrap:focus-within .au-btn, .au-btn-wrap:focus-within .au-btn-shadow{ transform: none; }
+}
