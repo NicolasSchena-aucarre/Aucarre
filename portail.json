@@ -2,35 +2,30 @@
   {
     "id": "ressources",
     "nom": "Ressources",
-    "description": "Partager et retrouver des articles, outils et guides utiles à toute l'équipe.",
     "icone": "https://nicolasschena-aucarre.github.io/Logo_Aucarre/icone-ressources.png",
     "url": "https://grist.aucarre.tech/o/outils/8sfKGYMzSRzG/Partage-ressource/p/7"
   },
   {
     "id": "contrat",
     "nom": "Renouvellement de contrat",
-    "description": "Générer un avenant de contrat et l'envoyer en signature électronique.",
     "icone": "https://nicolasschena-aucarre.github.io/Logo_Aucarre/icone-contrat.png",
     "url": "https://grist.aucarre.tech/o/outils/6DDXzAbgabCW/Automatisation-contrat-SI/p/10"
   },
   {
     "id": "reservation",
     "nom": "Réservation de salle",
-    "description": "Réserver une salle de réunion et voir les créneaux déjà pris.",
     "icone": "https://nicolasschena-aucarre.github.io/Logo_Aucarre/icone-reservation.png",
     "url": "https://grist.aucarre.tech/o/outils/qFKQPVdfFJeV/Reservation-Salle-de-Reunion/p/6"
   },
   {
     "id": "suivi-projet",
     "nom": "Suivi de projet",
-    "description": "Suivre l'avancement des projets en cours.",
     "icone": "https://nicolasschena-aucarre.github.io/Logo_Aucarre/icone-suivi-projet.png",
     "url": "https://grist.aucarre.tech/o/suivi-projet-aucarre/krivrmvrgwNW/Outils-Suivi-de-Projet-V2-excel-Pierre/p/16"
   },
   {
     "id": "suivi-temps",
     "nom": "Suivi du temps",
-    "description": "Suivre le temps passé sur chaque projet.",
     "icone": "https://nicolasschena-aucarre.github.io/Logo_Aucarre/icone-suivi-temps.png",
     "url": "https://grist.aucarre.tech/o/suivi-projet-aucarre/krivrmvrgwNW/Outils-Suivi-de-Projet-V2-excel-Pierre/p/17"
   }
