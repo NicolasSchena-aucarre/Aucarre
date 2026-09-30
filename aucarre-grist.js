@@ -12,7 +12,8 @@
 // (pas de nom de table ou de colonne en dur, pas de this/state). Quand un
 // widget a besoin d'une variante, il la garde chez lui.
 //
-// Sections : RÉESSAI · TABLES · VALEURS GRIST · SCHÉMA · PIÈCES JOINTES · DATES
+// Sections : RÉESSAI · TABLES · VALEURS GRIST · SCHÉMA · PIÈCES JOINTES · DATES ·
+//            ERREURS · IDENTITÉ · CYCLE DE VIE DU WIDGET
 // ==========================================================
 
 /* ---------- RÉESSAI ---------- */
@@ -36,6 +37,19 @@ async function reessayer(fn, tentativesMax, delaiMs) {
 }
 
 /* ---------- TABLES ---------- */
+
+// Charge plusieurs tables d'un coup, avec réessai. Une table sans "id"
+// signale une réponse Grist encore incomplète (voir reessayer ci-dessus) :
+// on déclenche volontairement une erreur pour que le réessai reprenne la
+// main, plutôt que de planter plus loin. Retourne les tables dans l'ordre
+// demandé :  const [tblA, tblB] = await chargerTables(["A", "B"]);
+async function chargerTables(noms) {
+  return reessayer(async () => {
+    const resultats = await Promise.all(noms.map(n => window.grist.docApi.fetchTable(n)));
+    if (resultats.some(t => !t || !t.id)) throw new Error("Réponse Grist incomplète, nouvelle tentative…");
+    return resultats;
+  }, 4, 350);
+}
 
 // fetchTable renvoie { id: [...], Colonne1: [...], Colonne2: [...] }.
 // On transforme en tableau d'objets { id, Colonne1, Colonne2, ... }, plus simple à manipuler.
@@ -162,4 +176,71 @@ function ajouterJours(date, n) {
 }
 function memeJourCalendaire(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/* ---------- ERREURS ---------- */
+
+// Texte lisible d'une erreur quelconque (Error, chaîne, objet inattendu).
+function messageErreur(e) {
+  return e && e.message ? e.message : String(e);
+}
+
+/* ---------- IDENTITÉ ---------- */
+
+// La seule ligne dont le champ email n'est pas censuré par l'ACL est celle de
+// la personne connectée. `champEmail` : nom du champ dans l'objet ligne
+// ("Email" pour une ligne brute de Grist, "email" pour une ligne déjà
+// transformée). Retourne la ligne, ou null si personne n'est identifiable.
+function trouverMoi(lignes, champEmail) {
+  return lignes.find(l => estValeurAutorisee(l[champEmail])) || null;
+}
+
+/* ---------- CYCLE DE VIE DU WIDGET ---------- */
+
+// À étaler dans le "state" de chaque widget, avec ETAT_INITIAL_PORTAIL :
+//   state = { ...ETAT_INITIAL_PORTAIL, ...ETAT_INITIAL_BASE, /* le reste */ };
+// status : "loading" | "ready" | "error" — le widget passe à "ready" (ou
+// "error" + errorMessage) à la fin de sa méthode chargerDonnees().
+const ETAT_INITIAL_BASE = {
+  status: "loading",
+  errorMessage: ""
+};
+
+// Au début de renderVals() :
+//   const statut = calculerStatutRenderVals(s);
+//   if (!statut.isReady) return statut;
+// puis, dans l'objet retourné à l'état prêt :  ...statut,
+function calculerStatutRenderVals(etat) {
+  if (etat.status === "loading") return { isLoading: true, isError: false, isReady: false };
+  if (etat.status === "error") return { isLoading: false, isError: true, isReady: false, errorMessage: etat.errorMessage };
+  return { isLoading: false, isError: false, isReady: true };
+}
+
+// Classe de base des widgets : appelle grist.ready() puis this.demarrer().
+// Une fonction (et non une classe déclarée directement) parce que DCLogic
+// n'existe qu'une fois support.js chargé — le widget la reçoit en argument :
+//   class Component extends creerBaseWidget(DCLogic) {
+//     state = { ...ETAT_INITIAL_PORTAIL, ...ETAT_INITIAL_BASE, /* … */ };
+//     async chargerDonnees() { … }   // appelée par demarrer() par défaut
+//     demarrer() { this.chargerSchema(); this.chargerDonnees(); }  // optionnel
+//   }
+// options.requiredAccess : niveau d'accès demandé à Grist ("full" par défaut).
+function creerBaseWidget(DCLogic, options) {
+  const requiredAccess = (options && options.requiredAccess) || "full";
+  return class BaseWidget extends DCLogic {
+    componentDidMount() {
+      try {
+        window.grist.ready({ requiredAccess });
+      } catch (e) {
+        this.setState({ status: "error", errorMessage: "grist.ready() a échoué : " + e.message });
+        return;
+      }
+      this.demarrer();
+    }
+    // Par défaut : charger les données. À surcharger si le widget a d'autres
+    // chargements à lancer au démarrage (ex. un schéma).
+    demarrer() {
+      this.chargerDonnees();
+    }
+  };
 }
