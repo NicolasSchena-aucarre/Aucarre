@@ -99,7 +99,9 @@ function calculerPortailRenderVals(etat, onTogglePortailFn) {
   return {
     portailOuvert: etat.portailOuvert,
     portailOuvertAttr: etat.portailOuvert ? "true" : "false",
-    portailChevron: etat.portailOuvert ? "▴" : "▾",
+        // L'icône est dessinée en CSS (aucarre-ui.css, .pm-chevron selon aria-expanded) ;
+    // chaîne vide gardée pour ne pas casser les gabarits qui affichent encore {{ portailChevron }}.
+    portailChevron: "",
     portailChargement: etat.portailChargement,
     portailErreur: etat.portailErreur,
     portailOutils: etat.portailOutils,
