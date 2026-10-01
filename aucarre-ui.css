@@ -22,6 +22,7 @@
   --ac-yellow:#fcfc0b;
   --ac-grey-dark:#59736e;
   --ac-grey-light:#f2f2f2;
+  --ac-grey-mid:#cccccc; /* gris neutre : valeur de repli quand une couleur est inconnue */
   --ac-off-white:#f3f6f6;
   --ac-white:#ffffff;
   --ac-text:#2d2d2d;
@@ -33,7 +34,9 @@
   --ac-green:#1f9d6c;
   --ac-red:#c0392b;
   --ac-blue-dark:#1c4b82;
-  /* Noir atténué : séparateurs et bordures discrètes. */
+  /* Noir atténué : 8 % trames très discrètes, 15 % lignes de grille, 22 % bordures. */
+  --ac-black-08:rgba(9,12,11,0.08);
+  --ac-black-15:rgba(9,12,11,0.15);
   --ac-black-22:rgba(9,12,11,0.22);
 
   --ac-radius:16px;
