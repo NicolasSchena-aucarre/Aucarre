@@ -121,3 +121,110 @@ function calculerIdentiteRenderVals(moi) {
     noIdentity: !moi
   };
 }
+
+/* ---------- Widgets en JavaScript "classique" (sans le runtime <x-dc>) ---------- */
+
+// Les widgets <x-dc> écrivent le gabarit du bandeau dans leur HTML (voir plus
+// haut). Un widget "classique" (un objet state + une fonction render() qui
+// reconstruit du HTML en chaîne) n'a pas de gabarit : cette fonction produit
+// le bandeau, l'insère dans `conteneur` et gère son ouverture/fermeture.
+//
+//   <div id="portail-root"></div>      <!-- AVANT le contenu du widget, pas dedans -->
+//
+//   const bandeau = montrerBandeauPortail({
+//     conteneur: document.getElementById("portail-root"),
+//     etat: state,                      // l'objet state du widget (complété au besoin)
+//     sousTitre: "Nom du widget",
+//     getMoi: () => state.moi           // { prenom, nom } ou null — omettre pour ne pas afficher l'utilisateur
+//   });
+//   // plus tard, quand "moi" est connu :  bandeau.rafraichir();
+//
+// Le conteneur est distinct de la zone que render() reconstruit : le bandeau
+// n'est donc jamais détruit par un re-rendu du widget. La liste n'est chargée
+// qu'à la première ouverture ; le menu se ferme à Échap et au clic ailleurs.
+function echapperHtmlPortail(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function montrerBandeauPortail({ conteneur, etat, sousTitre, getMoi }) {
+  // Complète l'état du widget avec les champs du menu s'ils manquent.
+  for (const k of Object.keys(ETAT_INITIAL_PORTAIL)) {
+    if (etat[k] === undefined) etat[k] = ETAT_INITIAL_PORTAIL[k];
+  }
+
+  function bandeauHTML() {
+    const p = calculerPortailRenderVals(etat, null);
+    // Seuls les liens http(s) deviennent cliquables : une entrée "javascript:…"
+    // dans portail.json ne doit jamais pouvoir s'exécuter dans le widget.
+    const outils = (p.portailOutils || []).filter(o => o && /^https?:\/\//i.test(o.url));
+    const utilisateur = getMoi ? calculerIdentiteRenderVals(getMoi()) : null;
+    return `
+<header class="pm-header">
+  <div class="pm-header-inner">
+    <div class="pm-brand">
+      <span class="pm-brand-menu-wrap">
+        <button type="button" class="pm-brand-logo-btn" id="pm-btn-portail" aria-label="Autres outils internes" aria-expanded="${p.portailOuvertAttr}">
+          <img class="pm-brand-logo" src="${echapperHtmlPortail(p.portailLogoUrl)}" alt="au carré" />
+          <span class="pm-chevron" aria-hidden="true">${p.portailChevron}</span>
+        </button>
+        ${p.portailOuvert ? `
+        <div class="pm-portail-menu">
+          ${p.portailChargement ? `<p class="pm-portail-vide">Chargement…</p>` : ""}
+          ${p.portailErreur ? `<p class="pm-portail-vide">Liste indisponible.</p>` : ""}
+          ${outils.map(o => `<a href="${echapperHtmlPortail(o.url)}" target="_blank" rel="noopener">${echapperHtmlPortail(o.nom)}</a>`).join("")}
+        </div>` : ""}
+      </span>
+      <span class="pm-brand-sep"></span>
+      <span class="pm-brand-sub">${echapperHtmlPortail(sousTitre)}</span>
+    </div>
+    ${utilisateur ? `
+    <div class="pm-user">
+      <span class="pm-user-name">${echapperHtmlPortail(utilisateur.moiLabel)}</span>
+      <span class="pm-avatar" aria-hidden="true">${echapperHtmlPortail(utilisateur.moiInitiales)}</span>
+    </div>` : ""}
+  </div>
+</header>`;
+  }
+
+  function rafraichir() {
+    // Un re-rendu détruit le bouton : sans ce filet, quelqu'un qui navigue au
+    // clavier perdrait le focus à chaque ouverture/fermeture.
+    const avaitFocus = document.activeElement && document.activeElement.id === "pm-btn-portail";
+    conteneur.innerHTML = bandeauHTML();
+    const bouton = document.getElementById("pm-btn-portail");
+    if (bouton) {
+      bouton.addEventListener("click", basculer);
+      if (avaitFocus) bouton.focus();
+    }
+  }
+
+  async function basculer() {
+    await togglePortailLogique(etat, patch => { Object.assign(etat, patch); rafraichir(); });
+  }
+
+  function fermer() {
+    if (!etat.portailOuvert) return;
+    etat.portailOuvert = false;
+    rafraichir();
+  }
+
+  // closest() plutôt que conteneur.contains() : au moment où ce gestionnaire
+  // s'exécute, le bouton cliqué a déjà été remplacé par rafraichir() (donc
+  // détaché du document), mais il garde son ancêtre .pm-brand-menu-wrap.
+  document.addEventListener("click", e => {
+    if (etat.portailOuvert && !(e.target.closest && e.target.closest(".pm-brand-menu-wrap"))) fermer();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && etat.portailOuvert) {
+      fermer();
+      const bouton = document.getElementById("pm-btn-portail");
+      if (bouton) bouton.focus();
+    }
+  });
+
+  rafraichir();
+  return { rafraichir };
+}
