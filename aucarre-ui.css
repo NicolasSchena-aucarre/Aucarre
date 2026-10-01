@@ -25,8 +25,22 @@
   --ac-off-white:#f3f6f6;
   --ac-white:#ffffff;
   --ac-text:#2d2d2d;
+
+  /* Couleurs FONCTIONNELLES : elles portent un état (réussite, alerte, phase en
+     cours), elles ne font pas partie des accents de marque. Jamais en fond de
+     bouton ni de bandeau ; toujours accompagnées d'une forme ou d'un libellé
+     (la couleur seule ne porte jamais l'information — RGAA). */
+  --ac-green:#1f9d6c;
+  --ac-red:#c0392b;
+  --ac-blue-dark:#1c4b82;
+  /* Noir atténué : séparateurs et bordures discrètes. */
+  --ac-black-22:rgba(9,12,11,0.22);
+
   --ac-radius:16px;
   --ac-radius-sm:8px;
+  /* Ombres franches, sans flou (style "dur" du référentiel). */
+  --ac-shadow-hard:6px 6px 0 var(--ac-black);
+  --ac-shadow-hard-sm:4px 4px 0 var(--ac-black);
 
   /* Couleurs d'accent surchargeables par widget (ex. :root{ --au-btn-accent: var(--ac-orange); }) */
   --au-btn-accent: var(--ac-turquoise);
@@ -150,18 +164,11 @@ h1.au-title{ margin: 0 0 24px; font-size: 28px; font-weight: 800; letter-spacing
 .pm-brand-menu-wrap{ position: relative; display: inline-block; }
 .pm-brand-logo-btn{
   display: inline-flex; align-items: center; gap: 4px; padding: 6px; border-radius: 8px;
-  cursor: pointer; background: none; border: none;
+  cursor: pointer; background: none; border: none; transition: background .15s ease;
 }
-/* Icônes Lucide square-chevron-down / -up : carré turquoise au contour noir (contraste ≥ 3:1 pour un
-   composant non textuel, RGAA 3.3). Choisies selon aria-expanded du bouton — couleurs en dur car les
-   var() ne fonctionnent pas dans une data URI. */
-.pm-brand-logo-btn .pm-chevron{
-  width: 28px; height: 28px; flex: none; display: block;
-  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23090c0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' fill='%2345f8cf'/%3E%3Cpath d='m16 10-4 4-4-4'/%3E%3C/svg%3E");
-}
-.pm-brand-logo-btn[aria-expanded="true"] .pm-chevron{
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23090c0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' fill='%2345f8cf'/%3E%3Cpath d='m8 14 4-4 4 4'/%3E%3C/svg%3E");
-}
+/* Fond off-white (et non blanc, invisible sur le bandeau blanc) ; l'anneau de focus vient du :focus-visible global. */
+.pm-brand-logo-btn:hover, .pm-brand-logo-btn:focus-visible{ background: var(--ac-off-white); }
+.pm-brand-logo-btn .pm-chevron{ font-size: 24px; color: var(--ac-black); line-height: 1; }
 
 /* MENU DU PORTAIL */
 .pm-portail-menu{
@@ -185,7 +192,7 @@ h1.au-title{ margin: 0 0 24px; font-size: 28px; font-weight: 800; letter-spacing
 /* MOUVEMENT RÉDUIT (accessibilité) */
 @media (prefers-reduced-motion: reduce){
   .au-spinner{ animation: none; opacity: 0.6; }
-  .au-btn, .au-btn-shadow, .au-tag{ transition: none; }
+  .au-btn, .au-btn-shadow, .au-tag, .pm-brand-logo-btn{ transition: none; }
   .au-btn-wrap:hover .au-btn, .au-btn-wrap:hover .au-btn-shadow,
   .au-btn-wrap:focus-within .au-btn, .au-btn-wrap:focus-within .au-btn-shadow{ transform: none; }
 }

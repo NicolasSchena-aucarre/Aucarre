@@ -99,9 +99,7 @@ function calculerPortailRenderVals(etat, onTogglePortailFn) {
   return {
     portailOuvert: etat.portailOuvert,
     portailOuvertAttr: etat.portailOuvert ? "true" : "false",
-    // L'icône est dessinée en CSS (aucarre-ui.css, .pm-chevron selon aria-expanded) ;
-    // chaîne vide gardée pour ne pas casser les gabarits qui affichent encore {{ portailChevron }}.
-    portailChevron: "",
+    portailChevron: etat.portailOuvert ? "▴" : "▾",
     portailChargement: etat.portailChargement,
     portailErreur: etat.portailErreur,
     portailOutils: etat.portailOutils,
@@ -111,15 +109,24 @@ function calculerPortailRenderVals(etat, onTogglePortailFn) {
 }
 
 // Bloc "utilisateur" du bandeau (nom + initiales dans l'avatar). Le widget
-// décide qui est "moi" et passe { prenom, nom } — ou null si personne n'a pu
-// être identifié :
-//   ...calculerIdentiteRenderVals(s.moi && { prenom: s.moi.Prenom, nom: s.moi.Nom })
+// décide qui est "moi" et passe :
+//   { nomComplet }      — le nom complet tel quel (colonne Utilisateurs.Nom_Complet) ;
+//                         initiales = première lettre du premier et du dernier mot
+//   { prenom, nom }     — prénom et nom séparés (initiales = une lettre de chaque)
+// ou null si personne n'a pu être identifié :
+//   ...calculerIdentiteRenderVals(s.moi && { nomComplet: s.moi.Nom_Complet })
 function calculerIdentiteRenderVals(moi) {
+  const complet = ((moi && moi.nomComplet) || "").trim();
   const prenom = (moi && moi.prenom) || "";
   const nom = (moi && moi.nom) || "";
+  let initiales = prenom.charAt(0) + nom.charAt(0);
+  if (complet) {
+    const mots = complet.split(/\s+/);
+    initiales = mots[0].charAt(0) + (mots.length > 1 ? mots[mots.length - 1].charAt(0) : "");
+  }
   return {
-    moiLabel: moi ? prenom + " " + nom : "Non identifié·e",
-    moiInitiales: moi ? (prenom.charAt(0) + nom.charAt(0)).toUpperCase() : "?",
+    moiLabel: moi ? (complet || prenom + " " + nom) : "Non identifié·e",
+    moiInitiales: moi ? initiales.toUpperCase() : "?",
     noIdentity: !moi
   };
 }
