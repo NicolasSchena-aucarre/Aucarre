@@ -98,7 +98,6 @@ h1.au-title{ margin: 0 0 24px; font-size: 28px; font-weight: 800; letter-spacing
 .au-tag{
   border: 1.5px solid var(--ac-black); background: var(--ac-white); color: var(--ac-black);
   padding: 8px 16px; font-size: 13.5px; font-weight: 500; cursor: pointer; border-radius: var(--ac-radius-sm);
-  transition: background .15s ease, color .15s ease;
 }
 .au-tag:hover{ border-color: var(--ac-orange); }
 .au-tag--sm{ padding: 6px 12px; font-size: 12.5px; }
@@ -169,8 +168,6 @@ h1.au-title{ margin: 0 0 24px; font-size: 28px; font-weight: 800; letter-spacing
   display: inline-flex; align-items: center; gap: 4px; padding: 6px; border-radius: 8px;
   cursor: pointer; background: none; border: none; transition: background .15s ease;
 }
-/* Fond off-white (et non blanc, invisible sur le bandeau blanc) ; l'anneau de focus vient du :focus-visible global. */
-.pm-brand-logo-btn:hover, .pm-brand-logo-btn:focus-visible{ background: var(--ac-off-white); }
 /* Icônes Lucide square-chevron-down / -up : carré turquoise au contour noir (contraste ≥ 3:1 pour un
    composant non textuel, RGAA 3.3). Choisies selon aria-expanded du bouton — couleurs en dur car les
    var() ne fonctionnent pas dans une data URI. */
@@ -204,7 +201,7 @@ h1.au-title{ margin: 0 0 24px; font-size: 28px; font-weight: 800; letter-spacing
 /* MOUVEMENT RÉDUIT (accessibilité) */
 @media (prefers-reduced-motion: reduce){
   .au-spinner{ animation: none; opacity: 0.6; }
-  .au-btn, .au-btn-shadow, .au-tag, .pm-brand-logo-btn{ transition: none; }
+  .au-btn, .au-btn-shadow, .au-tag{ transition: none; }
   .au-btn-wrap:hover .au-btn, .au-btn-wrap:hover .au-btn-shadow,
   .au-btn-wrap:focus-within .au-btn, .au-btn-wrap:focus-within .au-btn-shadow{ transform: none; }
 }
