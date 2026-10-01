@@ -7,6 +7,9 @@
 // sans garantie d'ordre), AVANT ./support.js et donc avant le script du
 // widget, qui utilise les globales définies ici.
 //
+// Les styles du bandeau (classes pm-*) sont dans aucarre-ui.css, sections
+// BANDEAU / MENU DU PORTAIL / UTILISATEUR.
+//
 // L'identification de la personne connectée ("moi") reste propre à chaque
 // widget — ce fichier ne fait que mettre en forme ce qu'on lui donne, il ne
 // décide jamais de qui est connecté.
