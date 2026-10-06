@@ -51,9 +51,9 @@
 // ==========================================================
 
 // Liste des outils internes, partagée avec le widget "Portail des outils".
-const URL_PORTAIL = "https://nicolasschena-aucarre.github.io/Logo_Aucarre/portail.json";
+const URL_PORTAIL = "https://nicolasschena-aucarre.github.io/Aucarre/portail.json";
 // Logo du bandeau (aussi utilisé pour le PDF du widget Renouvellement).
-const URL_LOGO = "https://nicolasschena-aucarre.github.io/Logo_Aucarre/logo.png";
+const URL_LOGO = "https://nicolasschena-aucarre.github.io/Aucarre/logo.png";
 
 // À étaler dans le "state" de chaque widget :
 //   state = { ...ETAT_INITIAL_PORTAIL, moi: null, ... /* le reste, propre au widget */ };
