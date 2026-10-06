@@ -3,7 +3,7 @@
 
    UTILISATION (dans le <head> du widget, une seule ligne) :
 
-     <script src="https://nicolasschena-aucarre.github.io/Logo_Aucarre/bandeau-aucarre.js"
+     <script src="https://nicolasschena-aucarre.github.io/Aucarre/bandeau-aucarre.js"
              data-titre="Nom du widget"></script>
 
    Le bandeau est le même pour toute l'entreprise : rien ne se règle, ni dans
@@ -42,8 +42,8 @@
   console.info("[bandeau-aucarre] version " + VERSION);
 
   // ---- Configuration (seul endroit à éditer) --------------------------------
-  var URL_PORTAIL = "https://nicolasschena-aucarre.github.io/Logo_Aucarre/portail.json";
-  var URL_LOGO = "https://nicolasschena-aucarre.github.io/Logo_Aucarre/logo.png";
+  var URL_PORTAIL = "https://nicolasschena-aucarre.github.io/Aucarre/portail.json";
+  var URL_LOGO = "https://nicolasschena-aucarre.github.io/Aucarre/logo.png";
   // ---------------------------------------------------------------------------
 
   var script = document.currentScript;
