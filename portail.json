@@ -10,7 +10,7 @@
     "nom": "Renouvellement de contrat",
     "icone": "https://nicolasschena-aucarre.github.io/Aucarre/icone/contrat.png",
     "url": "https://grist.aucarre.tech/o/outils/6DDXzAbgabCW/Automatisation-contrat-SI/p/10",
-    "roles": ["Manager]
+    "roles": ["Manager"]
   },
   {
     "id": "reservation",
@@ -23,7 +23,7 @@
     "nom": "Suivi de projet",
     "icone": "https://nicolasschena-aucarre.github.io/Aucarre/icone/suivi-projet.png",
     "url": "https://grist.aucarre.tech/o/suivi-projet-aucarre/krivrmvrgwNW/Outils-Suivi-de-Projet-V2-excel-Pierre/p/16",
-    "roles": ["Manager]
+    "roles": ["Manager"]
   },
   {
     "id": "suivi-temps",
