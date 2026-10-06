@@ -38,7 +38,7 @@
 
   if (window.BandeauAuCarre) return; // fichier chargé deux fois : une seule instance
 
-  var VERSION = "2026-10-06-au-carre";
+  var VERSION = "2026-10-06-au-carre-2";
   console.info("[bandeau-aucarre] version " + VERSION);
 
   // ---- Configuration (seul endroit à éditer) --------------------------------
@@ -61,7 +61,9 @@
     ".pm-header{background:var(--ac-white,#ffffff);color:var(--ac-black,#090c0b);padding:0 24px;border-bottom:1.5px solid var(--ac-black,#090c0b)}",
     ".pm-header-inner{max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:72px;padding:8px 0;flex-wrap:wrap}",
     ".pm-brand{display:flex;align-items:center;gap:12px;min-width:0}",
-    ".pm-brand-logo{height:60px;width:auto;flex:none;display:block}",
+    // Marge de 6 px autour du logo : même hauteur de bandeau (89 px) et même position du logo
+    // que l'ancien bandeau, où le logo était dans un bouton de 6 px de marge intérieure.
+    ".pm-brand-logo{height:60px;width:auto;flex:none;display:block;margin:6px}",
     ".pm-brand-sep{width:1px;height:20px;background:rgba(9,12,11,.18)}",
     ".pm-brand-sub{font-size:14px;font-weight:500}",
     ".pm-brand-sep[hidden],.pm-brand-sub[hidden],.pm-user[hidden],.pm-portail-menu[hidden]{display:none}",
