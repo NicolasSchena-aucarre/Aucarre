@@ -17,14 +17,35 @@
    titre, le séparateur disparaît aussi).
 
    LE MENU (burger) : la liste des outils est lue UNE fois, à la première
-   ouverture, dans portail.json (format : [ { "nom": "...", "url": "https://..." } ]).
+   ouverture, dans portail.json :
+
+     [ { "nom": "Suivi du temps",  "url": "https://..." },
+       { "nom": "Suivi de projet", "url": "https://...", "roles": ["Manager"] } ]
+
    Les entrées sans nom, ou dont l'adresse n'est pas http(s), sont ignorées.
+
+   LES RÔLES : « roles » (facultatif) limite une entrée aux personnes ayant l'un
+   de ces rôles (sans tenir compte de la casse ni des accents).
+     - absent, null, "" ou [] ........ visible par tout le monde
+     - ["Manager"] ou "Manager" ...... visible des seuls Manager
+     - ["Manager", "Admin"] .......... visible des Manager et des Admin
+     - toute autre forme (nombre…) ... masquée (on ne montre jamais par erreur)
+   Rôle de la personne INCONNU (le widget ne l'a pas transmis, personne
+   d'identifié, rôle vide) : seules les entrées destinées à tout le monde
+   s'affichent.
+   ATTENTION : ce tri ne fait que masquer des liens dans le menu. portail.json est
+   public : la vraie protection d'un widget reste dans les droits d'accès Grist.
 
    LA PERSONNE CONNECTÉE : le bandeau ne la cherche pas lui-même, c'est le widget
    qui la lui transmet quand il la connaît :
 
-     window.BandeauAuCarre.utilisateur({ nomComplet: "Gaylord Leroy" }); // ou { prenom, nom }
-     window.BandeauAuCarre.utilisateur(null);                            // « Non identifié·e »
+     window.BandeauAuCarre.utilisateur({ nomComplet: "Gaylord Leroy", role: "Manager" });
+     window.BandeauAuCarre.utilisateur({ prenom: "Paul", nom: "Durand" });  // sans rôle
+     window.BandeauAuCarre.utilisateur(null);                               // « Non identifié·e »
+
+   « role » : le texte de la colonne de rôle, ou une liste de choix de Grist
+   (["L", "Manager"]). Il peut être transmis après la première ouverture du menu :
+   le menu se met à jour tout seul.
 
    Tant que le widget n'appelle pas utilisateur(), le bloc nom + avatar reste
    masqué (cas d'un widget qui n'identifie personne).
@@ -38,19 +59,26 @@
 
   if (window.BandeauAuCarre) return; // fichier chargé deux fois : une seule instance
 
-  var VERSION = "2026-10-06-au-carre-2";
+  var VERSION = "2026-10-06-au-carre-6";
   console.info("[bandeau-aucarre] version " + VERSION);
 
   // ---- Configuration (seul endroit à éditer) --------------------------------
-  var URL_PORTAIL = "https://nicolasschena-aucarre.github.io/Aucarre/portail.json";
-  var URL_LOGO = "https://nicolasschena-aucarre.github.io/Aucarre/logo.png";
+  // portail.json et logo.png sont cherchés dans le MÊME dossier que ce fichier : renommer le
+  // dépôt GitHub ne demande donc aucune modification ici (seules les balises <script> des
+  // widgets changent). Adresse de repli si le script n'a pas été chargé par une balise statique.
+  var DOSSIER_PAR_DEFAUT = "https://nicolasschena-aucarre.github.io/Aucarre/";
   // ---------------------------------------------------------------------------
 
   var script = document.currentScript;
+  var dossier = script && script.src ? script.src.split(/[?#]/)[0].replace(/[^\/]*$/, "") : DOSSIER_PAR_DEFAUT;
+  var URL_PORTAIL = dossier + "portail.json";
+  var URL_LOGO = dossier + "logo.png";
   var titre = ((script && script.dataset && script.dataset.titre) || "").trim();
 
   var ui = null;                 // éléments du bandeau, une fois construit
   var moi;                       // undefined : non transmis ; null : non identifié
+  var rolesMoi = [];             // rôles de la personne, normalisés ([] = inconnu)
+  var outils = null;             // contenu de portail.json, une fois lu
   var menuEtat = "initial";      // initial | chargement | pret
 
   // Style du bandeau, isolé dans le Shadow DOM. var(--ac-x, repli) : la charte de
@@ -79,7 +107,9 @@
     ".pm-portail-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:50;min-width:220px;max-width:min(90vw,360px);background:var(--ac-white,#ffffff);border:1.5px solid var(--ac-black,#090c0b);border-radius:var(--ac-radius-sm,8px);box-shadow:4px 4px 0 var(--ac-black,#090c0b);padding:8px}",
     ".pm-portail-menu a{display:block;padding:8px 10px;border-radius:6px;text-decoration:none;color:var(--ac-black,#090c0b);font-size:13.5px;font-weight:500}",
     ".pm-portail-menu a:hover,.pm-portail-menu a:focus-visible{background:var(--ac-grey-light,#f2f2f2);color:var(--ac-black,#090c0b)}",
-    ".pm-portail-vide{margin:0;padding:8px 10px;font-size:13px;color:var(--ac-grey-dark,#59736e)}"
+    ".pm-portail-vide{margin:0;padding:8px 10px;font-size:13px;color:var(--ac-grey-dark,#59736e)}",
+    // Écran étroit : marges latérales de 16 px, comme celles du contenu des widgets.
+    "@media (max-width:600px){.pm-header{padding:0 16px}}"
   ].join("");
 
   // Mise en page de la PAGE (hors Shadow DOM) : bandeau + contenu en colonne, le
@@ -103,6 +133,35 @@
   // Seuls http(s) sont acceptés comme cible de lien.
   function urlSure(u) {
     return typeof u === "string" && /^https?:\/\//i.test(u.trim()) ? u.trim() : null;
+  }
+
+  // Minuscules, sans accents ni espaces superflus (comparaison des rôles).
+  function normaliser(s) {
+    return String(s == null ? "" : s).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  // Rôle de la personne : texte ou liste de choix Grist (["L", "Manager"]) -> valeurs normalisées.
+  function rolesDeLaPersonne(v) {
+    if (typeof v === "string") v = [v];
+    if (!Array.isArray(v)) return [];
+    if (v[0] === "L") v = v.slice(1);
+    return v.map(normaliser).filter(Boolean);
+  }
+
+  // Rôles exigés par une entrée de portail.json : null = tout le monde, sinon la liste autorisée.
+  function rolesExiges(o) {
+    var r = o.roles;
+    if (r === undefined || r === null || r === "") return null;
+    if (typeof r === "string") r = [r];
+    if (!Array.isArray(r)) return [];                    // forme inattendue : masquée par prudence
+    var liste = r.map(normaliser).filter(Boolean);
+    return liste.length ? liste : null;                  // [] : tout le monde
+  }
+
+  function visible(o) {
+    var exiges = rolesExiges(o);
+    if (exiges === null) return true;
+    return rolesMoi.some(function (r) { return exiges.indexOf(r) !== -1; });
   }
 
   // { nomComplet } ou { prenom, nom } -> { label, initiales } ; null -> « Non identifié·e ».
@@ -205,13 +264,14 @@
     ui.menu.appendChild(p);
   }
 
-  function remplir(liste) {
-    var outils = liste.filter(function (o) {
-      return o && typeof o.nom === "string" && o.nom.trim() && urlSure(o.url);
+  // Affiche les outils valides ET autorisés pour la personne ; rappelé quand son rôle arrive.
+  function afficherMenu() {
+    var liste = outils.filter(function (o) {
+      return o && typeof o.nom === "string" && o.nom.trim() && urlSure(o.url) && visible(o);
     });
-    if (!outils.length) return message("Aucun outil configuré.");
+    if (!liste.length) return message("Aucun outil configuré.");
     ui.menu.textContent = "";
-    outils.forEach(function (o) {
+    liste.forEach(function (o) {
       var a = el("a", null, { href: urlSure(o.url), target: "_blank", rel: "noopener" });
       a.textContent = o.nom.trim();
       ui.menu.appendChild(a);
@@ -228,9 +288,12 @@
       return res.json();
     }).then(function (liste) {
       if (!Array.isArray(liste)) throw new Error("Format inattendu");
-      remplir(liste);
+      outils = liste;
+      afficherMenu();
       menuEtat = "pret";
-    }).catch(function () {
+    }).catch(function (e) {
+      // Le détail (adresse, 404, JSON invalide…) est dans la console ; le menu reste sobre.
+      console.warn("[bandeau-aucarre] " + URL_PORTAIL + " illisible :", e && e.message ? e.message : e);
       message("Liste indisponible.");
       menuEtat = "initial";
     });
@@ -245,7 +308,26 @@
   // ---------- API pour le widget hôte ----------
   window.BandeauAuCarre = {
     version: VERSION,
-    utilisateur: function (m) { moi = m || null; rendreUtilisateur(); }
+    utilisateur: function (m) {
+      moi = m || null;
+      rolesMoi = rolesDeLaPersonne(moi && moi.role);
+      rendreUtilisateur();
+      if (outils) afficherMenu(); // le rôle peut arriver après le chargement de la liste
+    },
+    // Aide au diagnostic : dans la console du widget, taper  BandeauAuCarre.etat()
+    // (après avoir ouvert le menu une fois, pour que portail.json soit lu).
+    etat: function () {
+      return {
+        version: VERSION,
+        portail: URL_PORTAIL,
+        personne: moi === undefined ? "(le widget n'a pas appelé utilisateur())" : moi,
+        rolesReconnus: rolesMoi.slice(),
+        entrees: outils === null ? "(portail.json pas encore lu : ouvre le menu)" : outils.map(function (o) {
+          var objet = !!o && typeof o === "object";
+          return { nom: objet ? o.nom : "(entrée invalide)", roles: objet ? rolesExiges(o) : null, visible: objet && visible(o) };
+        })
+      };
+    }
   };
 
   if (document.body) construire();
