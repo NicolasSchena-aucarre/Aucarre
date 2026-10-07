@@ -47,6 +47,9 @@
    (["L", "Manager"]). Il peut être transmis après la première ouverture du menu :
    le menu se met à jour tout seul.
 
+   utilisateur() peut être rappelée aussi souvent qu'on veut (par exemple à chaque
+   relecture automatique des données) : un appel identique au précédent est ignoré.
+
    Tant que le widget n'appelle pas utilisateur(), le bloc nom + avatar reste
    masqué (cas d'un widget qui n'identifie personne).
 
@@ -59,7 +62,7 @@
 
   if (window.BandeauAuCarre) return; // fichier chargé deux fois : une seule instance
 
-  var VERSION = "2026-10-06-au-carre-6";
+  var VERSION = "2026-10-06-au-carre-7";
   console.info("[bandeau-aucarre] version " + VERSION);
 
   // ---- Configuration (seul endroit à éditer) --------------------------------
@@ -78,6 +81,7 @@
   var ui = null;                 // éléments du bandeau, une fois construit
   var moi;                       // undefined : non transmis ; null : non identifié
   var rolesMoi = [];             // rôles de la personne, normalisés ([] = inconnu)
+  var derniereCle;               // dernière personne transmise (pour ignorer un appel identique)
   var outils = null;             // contenu de portail.json, une fois lu
   var menuEtat = "initial";      // initial | chargement | pret
 
@@ -309,6 +313,11 @@
   window.BandeauAuCarre = {
     version: VERSION,
     utilisateur: function (m) {
+      // Un widget qui relit ses données à intervalle régulier rappelle cette fonction à chaque
+      // relecture : si rien n'a changé, on ne touche à rien (le menu ouvert garde son focus).
+      var cle = JSON.stringify(m || null);
+      if (cle === derniereCle) return;
+      derniereCle = cle;
       moi = m || null;
       rolesMoi = rolesDeLaPersonne(moi && moi.role);
       rendreUtilisateur();
