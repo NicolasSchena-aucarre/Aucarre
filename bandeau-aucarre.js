@@ -7,8 +7,10 @@
              data-titre="Nom du widget"></script>
 
    Le bandeau est le même pour toute l'entreprise : rien ne se règle, ni dans
-   des tables Grist ni ailleurs. Il ne demande AUCUN accès à Grist : il marche
-   dans un widget en lecture seule comme dans un widget en accès complet.
+   des tables Grist ni ailleurs. Il n'appelle jamais grist.ready() et ne REQUIERT
+   aucun accès à Grist : il s'affiche dans un widget en lecture seule comme dans
+   un widget en accès complet (seule l'identification automatique de la personne,
+   voir plus bas, a besoin de l'accès complet).
 
    Disposition, de gauche à droite :
      logo (non cliquable) | séparateur | titre   ...   nom + avatar | burger
@@ -36,8 +38,7 @@
    ATTENTION : ce tri ne fait que masquer des liens dans le menu. portail.json est
    public : la vraie protection d'un widget reste dans les droits d'accès Grist.
 
-   LA PERSONNE CONNECTÉE : le bandeau ne la cherche pas lui-même, c'est le widget
-   qui la lui transmet quand il la connaît :
+   LA PERSONNE CONNECTÉE : un widget qui la connaît la transmet au bandeau :
 
      window.BandeauAuCarre.utilisateur({ nomComplet: "Gaylord Leroy", role: "Manager" });
      window.BandeauAuCarre.utilisateur({ prenom: "Paul", nom: "Durand" });  // sans rôle
@@ -50,8 +51,20 @@
    utilisateur() peut être rappelée aussi souvent qu'on veut (par exemple à chaque
    relecture automatique des données) : un appel identique au précédent est ignoré.
 
-   Tant que le widget n'appelle pas utilisateur(), le bloc nom + avatar reste
-   masqué (cas d'un widget qui n'identifie personne).
+   IDENTIFICATION AUTOMATIQUE (secours, pour les outils qui ne transmettent rien) :
+   si le widget n'a pas appelé utilisateur() au bout de 3 secondes, le bandeau
+   identifie lui-même la personne en lisant la table « Utilisateurs » (exige que
+   le widget ait l'accès complet : docApi). Il retient la SEULE ligne dont la
+   colonne Email n'est pas masquée par les règles d'accès Grist, puis :
+     - nom   : Nom_Complet, sinon Prenom + Nom_de_famille, sinon Prenom + Nom ;
+     - rôle  : colonne Role (texte ou liste de choix).
+   Ce que transmet le widget l'emporte TOUJOURS sur l'identification automatique.
+   Sans accès complet, ou si la table est illisible, le bloc nom + avatar reste
+   simplement masqué. Les noms de table et de colonnes sont des constantes en
+   tête de la section « Identification automatique » ci-dessous.
+
+   Tant qu'aucune personne n'est connue (ni transmise, ni identifiée), le bloc
+   nom + avatar reste masqué.
 
    LA CHARTE : les couleurs suivent les variables --ac-* de aucarre-ui.css quand
    la page les définit (une seule source de vérité) ; sinon les valeurs de repli
@@ -62,7 +75,7 @@
 
   if (window.BandeauAuCarre) return; // fichier chargé deux fois : une seule instance
 
-  var VERSION = "2026-10-06-au-carre-7";
+  var VERSION = "2026-10-06-au-carre-8";
   console.info("[bandeau-aucarre] version " + VERSION);
 
   // ---- Configuration (seul endroit à éditer) --------------------------------
@@ -81,7 +94,9 @@
   var ui = null;                 // éléments du bandeau, une fois construit
   var moi;                       // undefined : non transmis ; null : non identifié
   var rolesMoi = [];             // rôles de la personne, normalisés ([] = inconnu)
-  var derniereCle;               // dernière personne transmise (pour ignorer un appel identique)
+  var derniereCle;               // dernière personne appliquée (pour ignorer un appel identique)
+  var explicite = false;         // le widget a appelé utilisateur() : l'identification automatique s'arrête
+  var origine = "aucune";        // d'où vient la personne affichée : aucune | widget | automatique
   var outils = null;             // contenu de portail.json, une fois lu
   var menuEtat = "initial";      // initial | chargement | pret
 
@@ -260,6 +275,84 @@
     ui.user.hidden = false;
   }
 
+  // Applique une personne (idempotent : un appel identique au précédent est ignoré, le menu
+  // ouvert garde donc son focus quand un widget relit ses données à intervalle régulier).
+  function appliquerPersonne(m) {
+    var cle = JSON.stringify(m || null);
+    if (cle === derniereCle) return;
+    derniereCle = cle;
+    moi = m || null;
+    rolesMoi = rolesDeLaPersonne(moi && moi.role);
+    rendreUtilisateur();
+    if (outils) afficherMenu(); // le rôle peut arriver après le chargement de la liste
+  }
+
+  // ---------- Identification automatique (secours) ----------
+  // Pour un outil qui ne transmet pas la personne (outil tiers, ancien widget). N'agit que si
+  // le widget n'a rien transmis après DELAI_AVANT_AUTO_MS ; son appel à utilisateur() l'emporte
+  // toujours. Le seul endroit à modifier si la table ou ses colonnes changent de nom.
+  var TABLE_UTILISATEURS = "Utilisateurs";
+  var COLONNE_EMAIL = "Email";      // masquée par les règles d'accès pour les autres personnes
+  var COLONNE_ROLE = "Role";
+  var DELAI_AVANT_AUTO_MS = 3000;
+  var DUREE_MAX_AUTO_MS = 15000;
+
+  function avecDelai(promesse, ms) {
+    return new Promise(function (resolve, reject) {
+      var t = setTimeout(function () { reject(new Error("délai dépassé")); }, ms);
+      promesse.then(function (v) { clearTimeout(t); resolve(v); }, function (e) { clearTimeout(t); reject(e); });
+    });
+  }
+
+  // Table Grist ({ id: [...], Colonne: [...] }) -> la personne connectée.
+  //   undefined : table inexploitable (pas de colonne Email) — on n'affiche rien ;
+  //   null      : table lisible mais aucune ligne identifiable — « Non identifié·e ».
+  function personneDepuisTable(table) {
+    var emails = table && table.id ? table[COLONNE_EMAIL] : null;
+    if (!Array.isArray(emails)) return undefined;
+    var i = -1;
+    for (var k = 0; k < emails.length; k++) {
+      if (typeof emails[k] === "string" && emails[k].length > 0) { i = k; break; } // une cellule masquée vaut ["C"]
+    }
+    if (i === -1) return null;
+    function texte(col) { var v = table[col] && table[col][i]; return typeof v === "string" ? v.trim() : ""; }
+    var personne = { role: table[COLONNE_ROLE] ? table[COLONNE_ROLE][i] : undefined };
+    var complet = texte("Nom_Complet");
+    var prenom = texte("Prenom");
+    var nom = table.Nom_de_famille ? texte("Nom_de_famille") : texte("Nom");
+    if (complet) personne.nomComplet = complet;
+    else if (prenom || nom) { personne.prenom = prenom; personne.nom = nom; }
+    else personne.nomComplet = emails[i]; // aucune colonne de nom exploitable : sa propre adresse plutôt qu'un nom vide
+    return personne;
+  }
+
+  function identifierAutomatiquement() {
+    var debut = Date.now();
+    function essayer() {
+      if (explicite) return;
+      if (Date.now() - debut > DUREE_MAX_AUTO_MS) {
+        console.info("[bandeau-aucarre] identification automatique impossible (accès complet à Grist requis, ou table « " + TABLE_UTILISATEURS + " » illisible).");
+        return;
+      }
+      var api = window.grist && window.grist.docApi;
+      if (!api || typeof api.fetchTable !== "function") { setTimeout(essayer, 500); return; }
+      avecDelai(new Promise(function (resolve) { resolve(api.fetchTable(TABLE_UTILISATEURS)); }), 4000)
+        .then(function (table) {
+          if (explicite) return;
+          var personne = personneDepuisTable(table);
+          if (personne === undefined) {
+            console.info("[bandeau-aucarre] identification automatique : colonne « " + COLONNE_EMAIL + " » introuvable dans « " + TABLE_UTILISATEURS + " ».");
+            return;
+          }
+          origine = "automatique";
+          appliquerPersonne(personne);
+        })
+        // L'accès à Grist n'est parfois accordé qu'après le grist.ready() du widget : on réessaie.
+        .catch(function () { setTimeout(essayer, 1500); });
+    }
+    setTimeout(essayer, DELAI_AVANT_AUTO_MS);
+  }
+
   // ---------- Menu ----------
   function message(texte) {
     ui.menu.textContent = "";
@@ -313,15 +406,9 @@
   window.BandeauAuCarre = {
     version: VERSION,
     utilisateur: function (m) {
-      // Un widget qui relit ses données à intervalle régulier rappelle cette fonction à chaque
-      // relecture : si rien n'a changé, on ne touche à rien (le menu ouvert garde son focus).
-      var cle = JSON.stringify(m || null);
-      if (cle === derniereCle) return;
-      derniereCle = cle;
-      moi = m || null;
-      rolesMoi = rolesDeLaPersonne(moi && moi.role);
-      rendreUtilisateur();
-      if (outils) afficherMenu(); // le rôle peut arriver après le chargement de la liste
+      explicite = true; // l'identification automatique n'a plus lieu d'être
+      origine = "widget";
+      appliquerPersonne(m);
     },
     // Aide au diagnostic : dans la console du widget, taper  BandeauAuCarre.etat()
     // (après avoir ouvert le menu une fois, pour que portail.json soit lu).
@@ -329,7 +416,8 @@
       return {
         version: VERSION,
         portail: URL_PORTAIL,
-        personne: moi === undefined ? "(le widget n'a pas appelé utilisateur())" : moi,
+        identification: origine,
+        personne: moi === undefined ? "(personne identifiée pour l'instant)" : moi,
         rolesReconnus: rolesMoi.slice(),
         entrees: outils === null ? "(portail.json pas encore lu : ouvre le menu)" : outils.map(function (o) {
           var objet = !!o && typeof o === "object";
@@ -341,4 +429,5 @@
 
   if (document.body) construire();
   else document.addEventListener("DOMContentLoaded", construire);
+  identifierAutomatiquement();
 })();
