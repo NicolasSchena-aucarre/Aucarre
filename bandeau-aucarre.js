@@ -51,14 +51,16 @@
    utilisateur() peut être rappelée aussi souvent qu'on veut (par exemple à chaque
    relecture automatique des données) : un appel identique au précédent est ignoré.
 
-   IDENTIFICATION AUTOMATIQUE (secours, pour les outils qui ne transmettent rien) :
-   si le widget n'a pas appelé utilisateur() au bout de 3 secondes, le bandeau
-   identifie lui-même la personne en lisant la table « Utilisateurs » (exige que
-   le widget ait l'accès complet : docApi). Il retient la SEULE ligne dont la
+   IDENTIFICATION AUTOMATIQUE : dès son chargement, sans attendre le widget, le
+   bandeau identifie lui-même la personne en lisant la table « Utilisateurs »
+   (exige que le widget ait l'accès complet : docApi). Il retient la SEULE ligne dont la
    colonne Email n'est pas masquée par les règles d'accès Grist, puis :
      - nom   : Nom_Complet, sinon Prenom + Nom_de_famille, sinon Prenom + Nom ;
      - rôle  : colonne Role (texte ou liste de choix).
-   Ce que transmet le widget l'emporte TOUJOURS sur l'identification automatique.
+   Ce que transmet le widget l'emporte TOUJOURS : si le widget appelle utilisateur()
+   avant la réponse de Grist, la personne trouvée par le bandeau est ignorée ; s'il
+   l'appelle après, sa personne remplace celle du bandeau (sans reconstruction si
+   elle est identique).
    Sans accès complet, ou si la table est illisible, le bloc nom + avatar reste
    simplement masqué. Les noms de table et de colonnes sont des constantes en
    tête de la section « Identification automatique » ci-dessous.
@@ -75,7 +77,7 @@
 
   if (window.BandeauAuCarre) return; // fichier chargé deux fois : une seule instance
 
-  var VERSION = "2026-10-06-au-carre-8";
+  var VERSION = "2026-10-06-au-carre-9";
   console.info("[bandeau-aucarre] version " + VERSION);
 
   // ---- Configuration (seul endroit à éditer) --------------------------------
@@ -278,7 +280,9 @@
   // Applique une personne (idempotent : un appel identique au précédent est ignoré, le menu
   // ouvert garde donc son focus quand un widget relit ses données à intervalle régulier).
   function appliquerPersonne(m) {
-    var cle = JSON.stringify(m || null);
+    // Clé canonique : le même nom et les mêmes rôles donnent la même clé, que le rôle arrive en texte,
+    // en liste ou en liste de choix Grist, et quel que soit l'ordre des champs.
+    var cle = m ? JSON.stringify([m.nomComplet || "", m.prenom || "", m.nom || "", rolesDeLaPersonne(m.role)]) : "null";
     if (cle === derniereCle) return;
     derniereCle = cle;
     moi = m || null;
@@ -287,22 +291,14 @@
     if (outils) afficherMenu(); // le rôle peut arriver après le chargement de la liste
   }
 
-  // ---------- Identification automatique (secours) ----------
-  // Pour un outil qui ne transmet pas la personne (outil tiers, ancien widget). N'agit que si
-  // le widget n'a rien transmis après DELAI_AVANT_AUTO_MS ; son appel à utilisateur() l'emporte
-  // toujours. Le seul endroit à modifier si la table ou ses colonnes changent de nom.
+  // ---------- Identification automatique ----------
+  // Identifie la personne sans attendre le widget (outil tiers, ancien widget). Ce que transmet le
+  // widget par utilisateur() l'emporte toujours. Le seul endroit à modifier si la table ou ses
+  // colonnes changent de nom.
   var TABLE_UTILISATEURS = "Utilisateurs";
   var COLONNE_EMAIL = "Email";      // masquée par les règles d'accès pour les autres personnes
   var COLONNE_ROLE = "Role";
-  var DELAI_AVANT_AUTO_MS = 3000;
-  var DUREE_MAX_AUTO_MS = 15000;
-
-  function avecDelai(promesse, ms) {
-    return new Promise(function (resolve, reject) {
-      var t = setTimeout(function () { reject(new Error("délai dépassé")); }, ms);
-      promesse.then(function (v) { clearTimeout(t); resolve(v); }, function (e) { clearTimeout(t); reject(e); });
-    });
-  }
+  var DUREE_MAX_AUTO_MS = 15000;   // au-delà, on renonce (et on le dit une fois dans la console)
 
   // Table Grist ({ id: [...], Colonne: [...] }) -> la personne connectée.
   //   undefined : table inexploitable (pas de colonne Email) — on n'affiche rien ;
@@ -326,18 +322,25 @@
     return personne;
   }
 
+  // Démarre tout de suite. L'API Grist (window.grist) peut arriver plus tard que ce script (balise
+  // placée avant grist-plugin-api.js) : on la guette. Un SEUL appel à la fois : s'il est refusé (l'accès
+  // n'est parfois établi qu'après le grist.ready() du widget), on réessaie ; s'il met du temps à
+  // répondre, on l'attend plutôt que d'en lancer un second. Un résultat tardif reste pris en compte.
   function identifierAutomatiquement() {
     var debut = Date.now();
+    var enCours = false;
     function essayer() {
-      if (explicite) return;
+      if (explicite || enCours) return;
       if (Date.now() - debut > DUREE_MAX_AUTO_MS) {
         console.info("[bandeau-aucarre] identification automatique impossible (accès complet à Grist requis, ou table « " + TABLE_UTILISATEURS + " » illisible).");
         return;
       }
       var api = window.grist && window.grist.docApi;
-      if (!api || typeof api.fetchTable !== "function") { setTimeout(essayer, 500); return; }
-      avecDelai(new Promise(function (resolve) { resolve(api.fetchTable(TABLE_UTILISATEURS)); }), 4000)
+      if (!api || typeof api.fetchTable !== "function") { setTimeout(essayer, 100); return; }
+      enCours = true;
+      new Promise(function (resolve) { resolve(api.fetchTable(TABLE_UTILISATEURS)); })
         .then(function (table) {
+          enCours = false;
           if (explicite) return;
           var personne = personneDepuisTable(table);
           if (personne === undefined) {
@@ -347,10 +350,9 @@
           origine = "automatique";
           appliquerPersonne(personne);
         })
-        // L'accès à Grist n'est parfois accordé qu'après le grist.ready() du widget : on réessaie.
-        .catch(function () { setTimeout(essayer, 1500); });
+        .catch(function () { enCours = false; setTimeout(essayer, 1000); });
     }
-    setTimeout(essayer, DELAI_AVANT_AUTO_MS);
+    essayer();
   }
 
   // ---------- Menu ----------
